@@ -1,4 +1,4 @@
-name = "broxy"
+name = "cors-stream-proxy"
 type = "javascript"
 account_id = ""
 workers_dev = true
