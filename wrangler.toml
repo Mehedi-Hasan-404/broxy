@@ -1,26 +1,26 @@
-# Worker name (unique per account)
+# Name of your Worker (must be unique across your account)
 name = "cors-stream-proxy"
 
-# Your Cloudflare account ID
+# Cloudflare Account ID (keep yours as-is)
 account_id = "0dec72346e94bae11c1c9fb5a7a16b71"
 
-# Entry point file for your Worker
+# Main entry file
 main = "src/index.js"
 
-# Enable modern runtime features
+# Compatibility for modern Cloudflare Workers
 compatibility_date = "2024-10-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Deploy to workers.dev subdomain
+# Deploy to workers.dev
 workers_dev = true
 
-# Resource limits
+# Resource limit (required!)
 [limits]
 cpu_ms = 50
 
-# Optional: build config (remove if not used)
+# Optional: if you need to build (you can remove if not using a bundler)
 [build]
-command = "npm run build"
+command = ""
 upload = { format = "modules" }
 
 # Production environment
