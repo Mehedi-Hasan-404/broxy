@@ -5,9 +5,3 @@ main = "src/index.js"
 
 [limits]
 cpu_ms = 50
-
-[env.production]
-name = "cors-stream-proxy-prod"
-
-[env.development]
-name = "cors-stream-proxy-dev"
