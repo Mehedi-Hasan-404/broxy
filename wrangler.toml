@@ -1,29 +1,13 @@
 name = "cors-stream-proxy"
-type = "javascript"
 account_id = "0dec72346e94bae11c1c9fb5a7a16b71"
 workers_dev = true
 main = "src/index.js"
+
+[limits]
+cpu_ms = 50
 
 [env.production]
 name = "cors-stream-proxy-prod"
 
 [env.development]
 name = "cors-stream-proxy-dev"
-
-[triggers]
-crons = []
-
-[build]
-command = ""
-cwd = ""
-watch_paths = []
-
-[build.upload]
-format = "modules"
-main = "./src/index.js"
-
-[limits]
-cpu_time_ms = 50
-
-[observability]
-enabled = true
