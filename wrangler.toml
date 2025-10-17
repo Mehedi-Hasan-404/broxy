@@ -1,6 +1,6 @@
 name = "cors-stream-proxy"
 type = "javascript"
-account_id = ""
+account_id = "0dec72346e94bae11c1c9fb5a7a16b71"
 workers_dev = true
 main = "src/index.js"
 
