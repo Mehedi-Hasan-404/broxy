@@ -1,0 +1,29 @@
+name = "broxy"
+type = "javascript"
+account_id = ""
+workers_dev = true
+main = "src/index.js"
+
+[env.production]
+name = "cors-stream-proxy-prod"
+
+[env.development]
+name = "cors-stream-proxy-dev"
+
+[triggers]
+crons = []
+
+[build]
+command = ""
+cwd = ""
+watch_paths = []
+
+[build.upload]
+format = "modules"
+main = "./src/index.js"
+
+[limits]
+cpu_time_ms = 50
+
+[observability]
+enabled = true
