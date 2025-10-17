@@ -1,0 +1,39 @@
+{
+  "name": "cloudflare-cors-proxy",
+  "version": "1.0.0",
+  "description": "Cloudflare Workers CORS proxy for streaming URLs with HLS/DASH support",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy src/index.js",
+    "dev": "wrangler dev src/index.js",
+    "watch": "wrangler dev src/index.js --watch",
+    "test": "node scripts/test.js",
+    "convert-m3u8": "node scripts/convert-m3u8.js",
+    "batch-convert": "node scripts/batch-convert.js"
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "cors",
+    "proxy",
+    "streaming",
+    "m3u8",
+    "hls",
+    "dash",
+    "edge-computing"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/cloudflare-cors-proxy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/cloudflare-cors-proxy/issues"
+  },
+  "homepage": "https://github.com/yourusername/cloudflare-cors-proxy#readme",
+  "devDependencies": {
+    "wrangler": "^3.14.0"
+  }
+}
