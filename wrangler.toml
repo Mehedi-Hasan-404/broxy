@@ -1,13 +1,30 @@
+# Worker name (must be unique across your Cloudflare account)
 name = "cors-stream-proxy"
+
+# Your Cloudflare Account ID (keep this as-is or update if needed)
 account_id = "0dec72346e94bae11c1c9fb5a7a16b71"
-workers_dev = true
+
+# Entry file for your Worker
 main = "src/index.js"
 
+# Compatibility settings for the latest runtime
+compatibility_date = "2024-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Whether to deploy to workers.dev subdomain
+workers_dev = true
+
+# CPU time limit per request (in milliseconds)
 [limits]
 cpu_ms = 50
 
+# Environment: production
 [env.production]
 name = "cors-stream-proxy-prod"
+route = ""
+zone_id = ""
 
+# Environment: development
 [env.development]
 name = "cors-stream-proxy-dev"
+vars = { DEBUG = "true", LOG_LEVEL = "debug" }
