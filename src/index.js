@@ -11,48 +11,9 @@ export const config = {
 const app = new Hono().basePath('/');
 
 // --- Security / CORS ---
-const checkAccess = (c, next) => {
-  const origin = c.req.header('Origin');
-  const referer = c.req.header('Referer');
-  
-  // --- THIS IS THE HARDCODED WHITELIST ---
-  const allowedOrigins = ['https://imshep.vercel.app', 'http://localhost:5173'];
-  const allowedReferers = ['https://imshep.vercel.app', 'http://localhost:5173'];
-  // --- END OF HARDCODED WHITELIST ---
-
-  let originOk = false;
-  let refererOk = false;
-
-  // Check Origin
-  if (origin) {
-    for (const allowed of allowedOrigins) {
-      if (allowed && new URL(allowed).origin === new URL(origin).origin) {
-        originOk = true;
-        break;
-      }
-    }
-  }
-
-  // Check Referer
-  if (referer) {
-    for (const allowed of allowedReferers) {
-      if (allowed && new URL(allowed).origin === new URL(referer).origin) {
-        refererOk = true;
-        break;
-      }
-    }
-  }
-  
-  // Allow if either is valid
-  if (originOk || refererOk) {
-    return next();
-  }
-
-  return c.json({ error: 'Access denied. Check CORS/Referer whitelist.' }, 403);
-};
-
+// The custom 'checkAccess' function has been removed.
+// We now just use the default Hono CORS middleware to allow all origins.
 app.use('*', cors());
-app.use('/proxy.m3u8', checkAccess);
 
 // --- Routes ---
 app.get('/', (c) => {
