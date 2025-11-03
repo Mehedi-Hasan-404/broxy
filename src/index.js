@@ -2,7 +2,7 @@
 import { Hono } from 'hono';
 import { handle } from 'hono/vercel';
 import { cors } from 'hono/cors';
-import { Hls, HlsParser } from 'hls-parser'; // This will now work
+import { Hls, HlsParser } from 'hls-parser'; // This is correct
 
 export const config = {
   runtime: 'edge',
@@ -82,13 +82,25 @@ app.get('/proxy.m3u8', async (c) => {
     const parser = new HlsParser();
     const playlist = parser.parse(m3u8Content);
 
+    // --- THIS IS THE FIXED FUNCTION ---
     const createProxyUrl = (segmentUri) => {
+      // Create a URL object from the worker's request URL
       const newUrl = new URL(req.url); 
+      
+      // Get the original M3U8 URL from the query
       const originalStreamUrl = new URL(newUrl.searchParams.get('url'));
+      
+      // Create the full, absolute URL for the segment/key
       const newSegmentUrl = new URL(segmentUri, originalStreamUrl);
+      
+      // Set the 'url' parameter to this new absolute segment URL
       newUrl.searchParams.set('url', newSegmentUrl.toString());
-      return newUrl.toString();
+
+      // Return a relative path that uses your Vercel app's rewrite
+      // This is the key fix!
+      return `/api/m3u8-proxy?${newUrl.searchParams.toString()}`;
     };
+    // --- END OF FIX ---
 
     if (playlist instanceof Hls) {
       // It's a master playlist
