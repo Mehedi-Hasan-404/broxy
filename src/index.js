@@ -15,8 +15,10 @@ const checkAccess = (c, next) => {
   const origin = c.req.header('Origin');
   const referer = c.req.header('Referer');
   
-  const allowedOrigins = (c.env.ORIGIN_WHITELIST || "").split(',');
-  const allowedReferers = (c.env.REFERER_WHITELIST || "").split(',');
+  // --- THIS IS THE HARDCODED WHITELIST ---
+  const allowedOrigins = ['https://imshep.vercel.app', 'http://localhost:5173'];
+  const allowedReferers = ['https://imshep.vercel.app', 'http://localhost:5173'];
+  // --- END OF HARDCODED WHITELIST ---
 
   let originOk = false;
   let refererOk = false;
@@ -41,7 +43,8 @@ const checkAccess = (c, next) => {
     }
   }
   
-  if (originOk || refererOk || (allowedOrigins.length === 0 && allowedReferers.length === 0)) {
+  // Allow if either is valid
+  if (originOk || refererOk) {
     return next();
   }
 
@@ -82,24 +85,14 @@ app.get('/proxy.m3u8', async (c) => {
     const parser = new HlsParser();
     const playlist = parser.parse(m3u8Content);
 
-    // --- THIS FUNCTION IS THE KEY ---
+    // This function rewrites all stream segments to point back to your Vercel app
     const createProxyUrl = (segmentUri) => {
-      // Create a URL object from the worker's request URL
       const newUrl = new URL(req.url); 
-      
-      // Get the original M3U8 URL from the query
       const originalStreamUrl = new URL(newUrl.searchParams.get('url'));
-      
-      // Create the full, absolute URL for the segment/key
       const newSegmentUrl = new URL(segmentUri, originalStreamUrl);
-      
-      // Set the 'url' parameter to this new absolute segment URL
       newUrl.searchParams.set('url', newSegmentUrl.toString());
-
-      // Return a relative path that uses your Vercel app's rewrite
       return `/api/m3u8-proxy?${newUrl.searchParams.toString()}`;
     };
-    // --- END OF KEY FUNCTION ---
 
     if (playlist instanceof Hls) {
       // It's a master playlist
