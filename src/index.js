@@ -1,7 +1,8 @@
+// /src/index.js
 import { Hono } from 'hono';
 import { handle } from 'hono/vercel';
 import { cors } from 'hono/cors';
-import { Hls, HlsParser } from 'm3u8-parser';
+import { Hls, HlsParser } from 'hls-parser'; // This will now work
 
 export const config = {
   runtime: 'edge',
@@ -10,7 +11,6 @@ export const config = {
 const app = new Hono().basePath('/');
 
 // --- Security / CORS ---
-// We check both Origin and Referer for full compatibility
 const checkAccess = (c, next) => {
   const origin = c.req.header('Origin');
   const referer = c.req.header('Referer');
@@ -41,7 +41,6 @@ const checkAccess = (c, next) => {
     }
   }
   
-  // Allow if either is valid, or if whitelists are empty
   if (originOk || refererOk || (allowedOrigins.length === 0 && allowedReferers.length === 0)) {
     return next();
   }
@@ -83,23 +82,11 @@ app.get('/proxy.m3u8', async (c) => {
     const parser = new HlsParser();
     const playlist = parser.parse(m3u8Content);
 
-    // --- THIS IS THE FUNCTION I FIXED ---
     const createProxyUrl = (segmentUri) => {
-      // Create the proxy URL we are currently at
-      const newUrl = new URL(req.url); // e.g., https://.../proxy.m3u8?url=...
-
-      // Get the original M3U8 URL from the query
+      const newUrl = new URL(req.url); 
       const originalStreamUrl = new URL(newUrl.searchParams.get('url'));
-
-      // Create the full, absolute URL for the segment/key
-      // It combines the segment path (e.g., 'segment1.ts') with the original stream's base URL
       const newSegmentUrl = new URL(segmentUri, originalStreamUrl);
-
-      // Set the 'url' parameter to this new absolute segment URL
       newUrl.searchParams.set('url', newSegmentUrl.toString());
-
-      // Return the full proxy URL, which still points to /proxy.m3u8
-      // e.g., https://.../proxy.m3u8?url=https://.../segment1.ts
       return newUrl.toString();
     };
 
