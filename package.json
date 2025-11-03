@@ -34,6 +34,8 @@
   },
   "homepage": "https://github.com/yourusername/cloudflare-cors-proxy#readme",
   "devDependencies": {
-    "wrangler": "^3.14.0"
+    "wrangler": "^3.14.0",
+    "hono": "^4.4.13",
+    "m3u8-parser": "^7.1.0"
   }
 }
