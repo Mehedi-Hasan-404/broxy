@@ -1,161 +1,141 @@
-/**
- * Cloudflare Workers CORS Stream Proxy
- * Handles CORS-restricted streaming URLs with referer support
- */
+import { Hono } from 'hono';
+import { handle } from 'hono/vercel';
+import { cors } from 'hono/cors';
+import { Hls, HlsParser } from 'm3u8-parser';
 
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-    
-    // Handle CORS preflight requests
-    if (request.method === 'OPTIONS') {
-      return handleOptions(request);
-    }
-
-    // Extract target URL from query parameter
-    const targetUrl = url.searchParams.get('url');
-    
-    if (!targetUrl) {
-      return new Response(
-        JSON.stringify({
-          error: 'Missing "url" query parameter',
-          example: '/?url=https%3A%2F%2Fexample.com%2Fstream.m3u8'
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...getCorsHeaders()
-          }
-        }
-      );
-    }
-
-    try {
-      const response = await fetchStream(targetUrl);
-      
-      // Add CORS headers to response
-      const headers = new Headers(response.headers);
-      Object.entries(getCorsHeaders()).forEach(([key, value]) => {
-        headers.set(key, value);
-      });
-
-      return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: headers
-      });
-
-    } catch (error) {
-      console.error('Proxy error:', error);
-      return new Response(
-        JSON.stringify({
-          error: 'Failed to fetch stream',
-          message: error.message
-        }),
-        {
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            ...getCorsHeaders()
-          }
-        }
-      );
-    }
-  }
+export const config = {
+  runtime: 'edge',
 };
 
-/**
- * Parse URL and referer from encoded parameter
- * Format: url or url|Referer=referer_url
- */
-function parseStreamUrl(encoded) {
-  const decoded = decodeURIComponent(encoded);
+const app = new Hono().basePath('/');
+
+// --- Security / CORS ---
+// We check both Origin and Referer for full compatibility
+const checkAccess = (c, next) => {
+  const origin = c.req.header('Origin');
+  const referer = c.req.header('Referer');
   
-  if (decoded.includes('|Referer=')) {
-    const [streamUrl, refererPart] = decoded.split('|Referer=');
-    return {
-      streamUrl: streamUrl.trim(),
-      referer: refererPart.trim()
-    };
+  const allowedOrigins = (c.env.ORIGIN_WHITELIST || "").split(',');
+  const allowedReferers = (c.env.REFERER_WHITELIST || "").split(',');
+
+  let originOk = false;
+  let refererOk = false;
+
+  // Check Origin
+  if (origin) {
+    for (const allowed of allowedOrigins) {
+      if (allowed && new URL(allowed).origin === new URL(origin).origin) {
+        originOk = true;
+        break;
+      }
+    }
   }
 
-  return {
-    streamUrl: decoded,
-    referer: null
-  };
-}
-
-/**
- * Fetch the stream with proper headers
- */
-async function fetchStream(encoded) {
-  const { streamUrl, referer } = parseStreamUrl(encoded);
-
-  // Validate URL
-  try {
-    new URL(streamUrl);
-  } catch {
-    throw new Error('Invalid URL provided');
-  }
-
-  // Build headers
-  const headers = new Headers({
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': '*/*',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'DNT': '1',
-    'Connection': 'keep-alive',
-    'Upgrade-Insecure-Requests': '1'
-  });
-
-  // Add referer if provided
+  // Check Referer
   if (referer) {
-    headers.set('Referer', referer);
+    for (const allowed of allowedReferers) {
+      if (allowed && new URL(allowed).origin === new URL(referer).origin) {
+        refererOk = true;
+        break;
+      }
+    }
+  }
+  
+  // Allow if either is valid, or if whitelists are empty
+  if (originOk || refererOk || (allowedOrigins.length === 0 && allowedReferers.length === 0)) {
+    return next();
   }
 
-  // Fetch the stream
-  const response = await fetch(streamUrl, {
-    method: 'GET',
-    headers: headers,
-    cf: {
-      cacheEverything: true,
-      cacheTtl: 3600,
-      mirage: true
-    }
-  });
+  return c.json({ error: 'Access denied. Check CORS/Referer whitelist.' }, 403);
+};
 
-  if (!response.ok) {
-    throw new Error(`Upstream server returned ${response.status}`);
+app.use('*', cors());
+app.use('/proxy.m3u8', checkAccess);
+
+// --- Routes ---
+app.get('/', (c) => {
+  return c.text('HLS Proxy is running!');
+});
+
+app.get('/proxy.m3u8', async (c) => {
+  const { req, env } = c;
+  const url = req.query('url');
+
+  if (!url) {
+    return c.json({
+      error: 'Missing "url" query parameter',
+      example: '/?url=https://example.com/stream.m3u8',
+    }, 400);
   }
 
-  return response;
-}
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': req.header('User-Agent') || 'HLS-Proxy',
+      },
+    });
 
-/**
- * Get CORS headers for response
- */
-function getCorsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization',
-    'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Content-Type, Content-Disposition',
-    'Access-Control-Max-Age': '86400',
-    'Cross-Origin-Embedder-Policy': 'credentialless',
-    'X-Content-Type-Options': 'nosniff'
-  };
-}
-
-/**
- * Handle CORS preflight requests
- */
-function handleOptions(request) {
-  return new Response(null, {
-    headers: {
-      ...getCorsHeaders(),
-      'Content-Length': '0'
+    if (!response.ok) {
+      return c.text(`Failed to fetch M3U8: ${response.status} ${response.statusText}`, response.status);
     }
-  });
-}
+
+    const m3u8Content = await response.text();
+    const parser = new HlsParser();
+    const playlist = parser.parse(m3u8Content);
+
+    // --- THIS IS THE FUNCTION I FIXED ---
+    const createProxyUrl = (segmentUri) => {
+      // Create the proxy URL we are currently at
+      const newUrl = new URL(req.url); // e.g., https://.../proxy.m3u8?url=...
+
+      // Get the original M3U8 URL from the query
+      const originalStreamUrl = new URL(newUrl.searchParams.get('url'));
+
+      // Create the full, absolute URL for the segment/key
+      // It combines the segment path (e.g., 'segment1.ts') with the original stream's base URL
+      const newSegmentUrl = new URL(segmentUri, originalStreamUrl);
+
+      // Set the 'url' parameter to this new absolute segment URL
+      newUrl.searchParams.set('url', newSegmentUrl.toString());
+
+      // Return the full proxy URL, which still points to /proxy.m3u8
+      // e.g., https://.../proxy.m3u8?url=https://.../segment1.ts
+      return newUrl.toString();
+    };
+
+    if (playlist instanceof Hls) {
+      // It's a master playlist
+      playlist.variants.forEach((variant) => {
+        if (variant.uri) {
+          variant.uri = createProxyUrl(variant.uri);
+        }
+      });
+    } else {
+      // It's a media playlist
+      playlist.segments.forEach((segment) => {
+        if (segment.uri) {
+          segment.uri = createProxyUrl(segment.uri);
+        }
+        if (segment.key && segment.key.uri) {
+          segment.key.uri = createProxyUrl(segment.key.uri);
+        }
+      });
+    }
+
+    const modifiedM3u8 = parser.stringify(playlist);
+
+    return new Response(modifiedM3u8, {
+      headers: {
+        'Content-Type': 'application/vnd.apple.mpegurl',
+        'Access-Control-Allow-Origin': c.req.header('Origin') || '*',
+      },
+    });
+
+  } catch (error) {
+    return c.json({ error: 'Failed to proxy HLS stream', details: error.message }, 500);
+  }
+});
+
+app.all('*', (c) => c.text('Not found', 404));
+
+export default app;
